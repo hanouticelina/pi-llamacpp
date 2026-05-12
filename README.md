@@ -9,7 +9,7 @@ chat flow — except the "API" is a `llama-server` running on `127.0.0.1`.
 
 ```bash
 brew install llama.cpp                              # llama-server binary
-npm install -g @mariozechner/pi-coding-agent        # pi itself
+curl -fsSL https://pi.dev/install.sh | sh           # pi itself
 
 # Seed the cache with at least one GGUF (any of these work):
 llama-server -hf unsloth/Qwen3-30B-A3B-GGUF:Q8_0    # downloads + exits with Ctrl-C
