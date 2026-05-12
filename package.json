@@ -4,7 +4,7 @@
   "description": "Pi extension: register your locally-downloaded Hugging Face GGUF models as a llama-cpp provider in pi.",
   "type": "module",
   "keywords": ["pi-package", "llama.cpp", "gguf", "huggingface"],
-  "repository": "https://github.com/hanouticelina/pi-local",
+  "repository": "https://github.com/hanouticelina/pi-llamacpp",
   "license": "Apache-2.0",
   "scripts": {
     "typecheck": "tsc --noEmit",

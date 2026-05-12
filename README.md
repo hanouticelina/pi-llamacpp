@@ -16,9 +16,9 @@ llama-server -hf unsloth/Qwen3-30B-A3B-GGUF:Q8_0    # downloads + exits with Ctr
 # or hf download <repo> <file> into ~/Library/Caches/llama.cpp
 
 # Run pi with this extension:
-pi -e git:github.com/hanouticelina/pi-local
-#  or: pi install git:github.com/hanouticelina/pi-local   (one-time)
-#      pi                                                 (subsequent runs)
+pi -e git:github.com/hanouticelina/pi-llamacpp
+#  or: pi install git:github.com/hanouticelina/pi-llamacpp   (one-time)
+#      pi                                                    (subsequent runs)
 ```
 
 Inside pi: `/model` → pick a `llama-cpp` entry → first message loads the GGUF
