@@ -68,12 +68,15 @@ and subscribing to events.
 3. **Spawn one router server** (`llama.ts:172`):
    - Find a free ephemeral port (open `:0`, read back, close).
    - `spawn("llama-server", ["--models-dir", dir, "-c", ctxCap, "--host",
-     "127.0.0.1", "--port", port, "-ngl", "999", "--spec-default", "--temp",
-     "0.6", "--top-p", "0.95", "--top-k", "20", "--min-p", "0.00"])`.
+     "127.0.0.1", "--port", port, "-ngl", "999"])`.
    - Write the child's PID to disk; register it in `liveChildren`; install
      signal handlers (`SIGINT/SIGTERM/SIGHUP`/`exit`) so we kill it on any pi
      exit path.
    - Poll `/health` until 200 (up to 120 s).
+   - Note: sampling flags (`--temp`, `--top-p`, …) aren't passed here. In
+     router mode this process doesn't run inference — the per-model children
+     do — so flags on the router are no-ops. Per-model sampling defaults live
+     in the preset INI; pi also sends sampling params per-request.
 4. **Discover the catalog** — `GET /v1/models` → array of `{ id, … }`. Each
    becomes a `ProviderModelConfig`.
 5. **Register the provider**:
@@ -153,10 +156,10 @@ You can see this — and the current load state of every model — in the router
 - Cold-load time = subprocess `fork+exec` + GGUF `mmap` + (with `-ngl 999`)
   GPU upload. On an M-series Mac: ~10 s for a 1–4 GB model, ~30–60 s for a
   20+ GB model.
-- Sampling flags we pass on the **router** spawn (`--temp`, `--top-p`,
-  `--top-k`, `--min-p`) don't reach inference — the children sample, and they
-  get their own flags from the preset. To bake in defaults, edit the preset
-  file; otherwise rely on pi sending them per-request in the body.
+- Sampling defaults (`temp`, `top_p`, `top_k`, `min_p`, etc.) belong in the
+  per-model preset INI (next to the manifest) — not on the router spawn,
+  which never sees inference. Pi also sends sampling params per-request in
+  the OpenAI body, which take precedence.
 - A model marked `"failed": true` in `/v1/models` is a previous spawn that
   exited non-zero (usually a missing GGUF). The router won't retry until
   something forces it.

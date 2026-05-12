@@ -64,13 +64,10 @@ export default async function pilocalExtension(pi: ExtensionAPI): Promise<void> 
 			modelsDir,
 			contextSize: CONTEXT_CAP,
 			gpuLayers: 999,
-			extraArgs: [
-				"--spec-default",
-				"--temp", "0.6",
-				"--top-p", "0.95",
-				"--top-k", "20",
-				"--min-p", "0.00",
-			],
+			// Sampling flags (--temp, --top-p, …) deliberately omitted: in router
+			// mode the children do inference, not this process, so flags here are
+			// no-ops. Pi sends sampling params per-request; per-model defaults
+			// live in the preset INI alongside each GGUF's manifest.
 		});
 	} catch (err) {
 		console.error(`[llama-cpp] failed to start router server: ${describeError(err)}`);
