@@ -1,5 +1,7 @@
 # pi-llamacpp
 
+⚠️⚠️ This repo is 100% vibe coded using Claude Code.
+
 A [pi](https://github.com/badlogic/pi-mono) extension that exposes your local
 `llama.cpp` cache as a `llama-cpp` provider inside pi. From pi's perspective it
 looks like any OpenAI-compatible cloud provider — same `/model` picker, same
