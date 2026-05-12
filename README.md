@@ -99,11 +99,67 @@ and subscribing to events.
 - Sending a message: pi builds an OpenAI-format request body
   (`{ model: "<id>", messages: […], stream: true, …}`) and POSTs it to
   `http://127.0.0.1:<port>/v1/chat/completions`.
-- The router server matches `<id>`, **loads the GGUF on first hit** (because
-  `--models-autoload` defaults on), holds up to `--models-max` (default 4) in
-  memory, and streams tokens back.
-- Switching models is purely an OpenAI-API thing — pi just changes the
-  `model` field on subsequent requests. No spawn/stop, no server churn.
+- The router matches `<id>`. If that model is already loaded, it proxies the
+  request (~ms). If not, it lazily spawns a sub-`llama-server` for it (see
+  next section), waits for `/health`, then proxies. First hit on a new model
+  pays the cold-load tax; subsequent hits on the same model are instant.
+- Switching to an **already-loaded** model is free — pi just changes the
+  `model` field and the router forwards to the existing subprocess. Switching
+  to an **unloaded** model spawns a new subprocess (and may evict another via
+  LRU if `--models-max` is exceeded).
+
+### Inside the router: per-model subprocesses
+
+The router doesn't run inference itself. It's a reverse proxy + process
+supervisor. Process tree at runtime:
+
+```
+llama-server  (router — what our extension spawned)
+├── llama-server  (model A, lazy-spawned on first request for A)
+├── llama-server  (model B, lazy-spawned on first request for B)
+└── …  up to --models-max children (default 4, LRU evicts beyond that)
+```
+
+Each child is a normal single-model `llama-server` invocation with `-m <gguf>
+-c <ctx> --port <random-free-port> --alias <id>`. The router builds that CLI
+from a per-model **preset** (an INI snippet stored alongside the GGUF's
+manifest in the llama.cpp cache):
+
+```
+[gemma]
+ctx-size = 4096
+model = /path/to/gemma.gguf
+n-gpu-layers = 999
+```
+
+You can see this — and the current load state of every model — in the router's
+`/v1/models` response, which is richer than a standard OpenAI catalog:
+
+```json
+{
+  "id": "gemma",
+  "status": {
+    "value": "loaded" | "loading" | "unloaded" | "failed",
+    "args": [/* CLI passed to the subprocess */],
+    "preset": "[gemma]\nctx-size = 4096\n…",
+    "exit_code": 10,
+    "failed": true
+  }
+}
+```
+
+**Practical implications**:
+
+- Cold-load time = subprocess `fork+exec` + GGUF `mmap` + (with `-ngl 999`)
+  GPU upload. On an M-series Mac: ~10 s for a 1–4 GB model, ~30–60 s for a
+  20+ GB model.
+- Sampling flags we pass on the **router** spawn (`--temp`, `--top-p`,
+  `--top-k`, `--min-p`) don't reach inference — the children sample, and they
+  get their own flags from the preset. To bake in defaults, edit the preset
+  file; otherwise rely on pi sending them per-request in the body.
+- A model marked `"failed": true` in `/v1/models` is a previous spawn that
+  exited non-zero (usually a missing GGUF). The router won't retry until
+  something forces it.
 
 ### Lifecycle and crash safety (`src/llama.ts`)
 
